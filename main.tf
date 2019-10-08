@@ -1,3 +1,20 @@
+resource "aws_s3_bucket" "this" {
+  bucket = "example"
+}
+
+data "archive_file" "source" {
+  type        = "zip"
+  source_dir  = "../lambda-functions/loadbalancer-to-es"
+  output_path = "../lambda-functions/loadbalancer-to-es.zip"
+}
+
+# upload zip to s3 and then update lamda function from s3
+resource "aws_s3_bucket_object" "file_upload" {
+  bucket = "${aws_s3_bucket.this.id}"
+  key    = "lambda-functions/loadbalancer-to-es.zip"
+  source = "${data.archive_file.source.output_path}" # its mean it depended on zip
+}
+
 resource "aws_lambda_function" "this" {
   function_name    = "${var.lambda_function_name}"
   role             = "${aws_iam_role.this.arn}"                                                //to be check
@@ -13,12 +30,6 @@ resource "aws_lambda_function" "this" {
       VAR1 = "${var.demo}"
     }
   }
-}
-
-data “archive_file” “zipit” {
- type = “zip”
- source_dir = “crawler/dist”
- output_path = “${var.crawler_packaged_file}”
 }
 
 resource “aws_s3_bucket_object” “file_upload” {
@@ -40,10 +51,3 @@ resource "aws_lambda_permission" "this" {
   source_arn    = "${var.aws_kibana_sns_topic}"
   function_name = "${aws_lambda_function.this.arn}"
 }
-
-resource "aws_sns_topic_subscription" "this" {
-  protocol  = "lambda"
-  topic_arn = "${var.aws_kibana_sns_topic}"
-  endpoint  = "${aws_lambda_function.this.arn}"
-}
-
